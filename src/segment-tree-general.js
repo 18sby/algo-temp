@@ -6,78 +6,84 @@
     hold: 0
   }
 */
+const a = [2, 4, 6, 8, 10, 12];
+const n = a.length;
 
-const nums = [1, 2, 3, 4, 5, 6];
-const n = nums.length;
-nums.unshift(-1); // 0 索引不用，对于 nums 来说，建树范围是闭区间 [1, 6]
-const t = new Array(n); // 线段树
 
-function build(p, l, r) {
-  if (!t[p]) t[p] = { val: 0, hold: 0 };
-  t[p].l = l;
-  t[p].r = r;
-  if (l === r) {
-    t[p].val = nums[l];
-    return ;
+class SegmentTree {
+  constructor(nums) {
+    this.nums = nums;
+    const n = nums.length;
+    this.t = new Array(4 * n + 1);
+    this.build(1, 1, n);
   }
-  const mid = l + ((r - l) >> 1);
-  if (!t[p * 2]) t[p * 2] = { val: 0, hold: 0 };
-  if (!t[p * 2 + 1]) t[p * 2 + 1] = { val: 0, hold: 0 };
-  build(p * 2, l, mid);
-  build(p * 2 + 1, mid + 1, r);
-  t[p].val = t[p * 2].val + t[p * 2 + 1].val;
-};
 
-function lazy(p) {
-  if (t[p].hold) {
-    t[p * 2].hold = t[p].hold;
-    t[p * 2].val += t[p].hold * (t[p * 2].r - t[p * 2].l + 1);
-    t[p * 2 + 1].hold = t[p].hold;
-    t[p * 2 + 1].val += t[p].hold * (t[p * 2 + 1].r - t[p * 2 + 1].l + 1);
-    t[p].hold = 0;
+  build(p, l, r) {
+    const { nums, t } = this;
+    if (!t[p]) t[p] = { l, r, val: 0, hold: 0 };
+    if (l === r) {
+      t[p].val = nums[l - 1];
+      return;
+    }
+    const mid = l + ((r - l) >> 1);
+    this.build(p * 2, l, mid);
+    this.build(p * 2 + 1, mid + 1, r);
+    t[p].val = t[p * 2].val + t[p * 2 + 1].val;
+  }
+
+  change(p, nl, nr, k) {
+    const { t } = this;
+    if (t[p].l >= nl && t[p].r <= nr) {
+      t[p].hold += k;
+      t[p].val += k * (t[p].r - t[p].l + 1);
+      return;
+    }
+    this.lazy(p);
+    const mid = t[p].l + ((t[p].r - t[p].l) >> 1);
+    if (nl <= mid) {
+      this.change(p * 2, nl, nr, k);
+    }
+    if (nr > mid) {
+      this.change(p * 2 + 1, nl, nr, k);
+    }
+    t[p].val = t[p * 2].val + t[p * 2 + 1].val;
+  }
+
+  query(p, nl, nr) {
+    const { t } = this;
+    if (t[p].l >= nl && t[p].r <= nr) {
+      return t[p].val;
+    }
+    this.lazy(p);
+    let res = 0;
+    const mid = t[p].l + ((t[p].r - t[p].l) >> 1);
+    if (nl <= mid) {
+      res += this.query(p * 2, nl, nr);
+    }
+    if (nr > mid) {
+      res += this.query(p * 2 + 1, nl, nr);
+    }
+    return res;
+  }
+
+  lazy(p) {
+    const { t } = this;
+    if (t[p].hold) {
+      t[p * 2].hold = t[p].hold;
+      t[p * 2].val += t[p].hold * (t[p * 2].r - t[p * 2].l + 1);
+      t[p * 2 + 1].hold = t[p].hold;
+      t[p * 2 + 1].val += t[p].hold * (t[p * 2 + 1].r - t[p * 2 + 1].l + 1);
+      t[p].hold = 0;
+    }
   }
 }
 
-function change(p, nl, nr, k) {
-  if (t[p].l >= nl && t[p].r <= nr) {
-    t[p].hold += k;
-    t[p].val += k * (t[p].r - t[p].l + 1);
-    return ;
-  }
-  lazy(p);
-  const mid = t[p].l + ((t[p].r - t[p].l) >> 1);
-  if (nl <= mid) {
-    change(p * 2, nl, nr, k);
-  }
-  if (nr > mid) {
-    change(p * 2 + 1, nl, nr, k);
-  }
-  t[p].val = t[p * 2].val + t[p * 2 + 1].val;
-}
 
-function query(p, nl, nr) {
-  if (t[p].l >= nl && t[p].r <= nr) {
-    return t[p].val;
-  }
-  lazy(p);
-  let res = 0;
-  const mid = t[p].l + ((t[p].r - t[p].l) >> 1);
-  if (nl <= mid) {
-    res += query(p * 2, nl, nr);
-  }
-  if (nr > mid) {
-    res += query(p * 2 + 1, nl, nr);
-  }
-  return res;
-}
-
-build(1, 1, n);
-
-// 查询区间 [1, 5] 的和
-console.log(query(1, 1, 5)); // 1 + 2 + 3 + 4 + 5 = 15
-
-// 修改区间 [2, 3] 每个值 +2
-change(1, 2, 3, 2);
-
-// 查询区间 [1, 5] 的和
-console.log(query(1, 1, 5)); // 1 + 4 + 5 + 4 + 5 = 19
+const seg = new SegmentTree(a);
+seg.build(1, 1, n);
+console.log('build: ', seg.t);
+console.log('query 1 ~ 5, ', 'should be 30, actually is ', seg.query(1, 1, 5));
+console.log('query 1 ~ 6, ', 'should be 42, actually is ', seg.query(1, 1, 6));
+seg.change(1, 3, 3, 10);
+console.log('query 1 ~ 5, ', 'should be 40, actually is ', seg.query(1, 1, 5));
+console.log('query 1 ~ 6, ', 'should be 52, actually is ', seg.query(1, 1, 6));
